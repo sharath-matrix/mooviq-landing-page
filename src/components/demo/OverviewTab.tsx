@@ -22,7 +22,7 @@ interface OverviewTabProps {
   cityData: CityCoverageItem[];
   onSelectCampaign: (campaign: Campaign) => void;
   onOpenAlert: (alert: FraudAlert) => void;
-  onNavigateToTab: (tab: 'campaigns' | 'proofs' | 'alerts' | 'analytics') => void;
+  onNavigateToTab: (tab: 'campaigns' | 'proofs' | 'alerts' | 'reports') => void;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -61,19 +61,19 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900">
               {stats.activeCampaigns}
             </span>
-            <span className="text-xs font-semibold text-emerald-600 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +8% vs last mo
+            <span className="text-xs font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+              of {campaigns.length} total
             </span>
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">
-            Across {cityData.length} urban media clusters
+            Across {cityData.length} sample city clusters
           </span>
         </div>
 
         {/* KPI 2: Completed Audits */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Audits Completed</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Audits Verified</span>
             <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -82,12 +82,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900">
               {stats.auditsCompleted.toLocaleString()}
             </span>
-            <span className="text-xs font-semibold text-emerald-600 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +22%
+            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+              {stats.tasksExecutedTotal > 0 ? Math.round((stats.auditsCompleted / stats.tasksExecutedTotal) * 100) : 0}% pass
             </span>
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">
-            Verified unit checkpoints
+            Verified unit &amp; log checkpoints
           </span>
         </div>
 
@@ -108,7 +108,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </span>
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">
-            Awaiting secondary image check
+            Awaiting reviewer verification
           </span>
         </div>
 
@@ -129,7 +129,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </span>
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">
-            Duplicate angle, GPS offset, blur
+            Damage, obstructions, log gaps
           </span>
         </div>
 
@@ -286,7 +286,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
 
           <div className="space-y-3.5">
-            {campaigns.slice(0, 4).map((campaign) => (
+            {campaigns
+              .filter((c) => ['cmp-001', 'cmp-003', 'cmp-005', 'cmp-008'].includes(c.id))
+              .map((campaign) => (
               <div
                 key={campaign.id}
                 onClick={() => onSelectCampaign(campaign)}
@@ -384,10 +386,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
 
           <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>6 urban transit markets</span>
-            <span className="text-brand-600 font-medium cursor-pointer" onClick={() => onNavigateToTab('campaigns')}>
+            <span>{cityData.length} sample city clusters</span>
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('campaigns')}
+              className="text-brand-600 font-medium cursor-pointer hover:underline"
+            >
               Explore by city &rarr;
-            </span>
+            </button>
           </div>
         </div>
 

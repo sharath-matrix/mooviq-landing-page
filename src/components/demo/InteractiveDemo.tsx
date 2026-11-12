@@ -1,35 +1,37 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Layers, 
-  Camera, 
-  AlertTriangle, 
-  BarChart3, 
-  Search, 
-  Download, 
+import {
+  LayoutDashboard,
+  Layers,
+  Camera,
+  AlertTriangle,
+  FileSpreadsheet,
+  Search,
+  Download,
   SlidersHorizontal,
   ShieldCheck,
-  X
+  RotateCcw,
+  X,
 } from 'lucide-react';
 
-import { 
-  RAW_CAMPAIGNS, 
-  RAW_MEDIA_PROOFS, 
-  RAW_FRAUD_ALERTS, 
-  MONTHLY_AUDIT_HISTORY
+import {
+  RAW_CAMPAIGNS,
+  RAW_MEDIA_PROOFS,
+  RAW_FRAUD_ALERTS,
+  MONTHLY_AUDIT_HISTORY,
 } from '../../data/demoData';
 import { Campaign, MediaProof, FraudAlert, CityCoverageItem } from '../../types/mooviq';
+import { MediaFamilyId } from '../../config/mediaAuditCatalog';
 
 import { OverviewTab } from './OverviewTab';
 import { CampaignsTab } from './CampaignsTab';
 import { ProofsTab } from './ProofsTab';
 import { AlertsTab } from './AlertsTab';
-import { AnalyticsTab } from './AnalyticsTab';
+import { ReportsTab } from './ReportsTab';
 import { CampaignDrawer } from './CampaignDrawer';
 import { ProofModal } from './ProofModal';
 import { AlertDrawer } from './AlertDrawer';
 
-export type DemoTabId = 'overview' | 'campaigns' | 'proofs' | 'alerts' | 'analytics';
+export type DemoTabId = 'overview' | 'campaigns' | 'proofs' | 'alerts' | 'reports';
 
 interface InteractiveDemoProps {
   activeTab?: DemoTabId;
@@ -40,7 +42,6 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
   activeTab: controlledTab,
   onTabChange,
 }) => {
-  // Navigation tab state (controlled if parent provides props, internal fallback otherwise)
   const [internalTab, setInternalTab] = useState<DemoTabId>('overview');
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = (tab: DemoTabId) => {
@@ -48,28 +49,25 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
     if (onTabChange) onTabChange(tab);
   };
 
-  // Scenario state: 'On track' | 'Needs attention' | 'Completed'
   const [scenario, setScenario] = useState<'On track' | 'Needs attention' | 'Completed'>('On track');
 
-  // Functional Global Search
+  // Search & cross-tab pass-through filters
   const [globalQuery, setGlobalQuery] = useState<string>('');
   const [globalSearchOpen, setGlobalSearchOpen] = useState<boolean>(false);
   const [appliedCampaignSearch, setAppliedCampaignSearch] = useState<string>('');
+  const [targetProofsCampaignId, setTargetProofsCampaignId] = useState<string>('All');
+  const [targetAlertsCampaignId, setTargetAlertsCampaignId] = useState<string>('All');
+  const [familyPassThrough, setFamilyPassThrough] = useState<'All' | MediaFamilyId>('All');
   const searchWrapperRef = useRef<HTMLDivElement>(null);
 
-  // Selected items for modals/drawers
+  // Modals / Drawers
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [selectedProof, setSelectedProof] = useState<MediaProof | null>(null);
   const [selectedAlert, setSelectedAlert] = useState<FraudAlert | null>(null);
 
-  // Filter pass-through (e.g. jumping from campaign to its proofs/alerts)
-  const [targetProofsCampaignId, setTargetProofsCampaignId] = useState<string>('All');
-  const [targetAlertsCampaignId, setTargetAlertsCampaignId] = useState<string>('All');
-
-  // Local mutable state for exceptions
+  // Mutable sample exceptions
   const [alerts, setAlerts] = useState<FraudAlert[]>(RAW_FRAUD_ALERTS);
 
-  // Close global search dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
@@ -80,7 +78,21 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Reactive campaigns based on scenario (maintaining exact arithmetic: verified + flagged + pending === submitted)
+  const handleResetDemo = () => {
+    setScenario('On track');
+    setActiveTab('overview');
+    setGlobalQuery('');
+    setGlobalSearchOpen(false);
+    setAppliedCampaignSearch('');
+    setTargetProofsCampaignId('All');
+    setTargetAlertsCampaignId('All');
+    setFamilyPassThrough('All');
+    setSelectedCampaign(null);
+    setSelectedProof(null);
+    setSelectedAlert(null);
+    setAlerts(RAW_FRAUD_ALERTS);
+  };
+
   const currentCampaigns = useMemo(() => {
     if (scenario === 'Completed') {
       return RAW_CAMPAIGNS.map((c) => ({
@@ -96,9 +108,9 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
       }));
     }
     if (scenario === 'Needs attention') {
-      return RAW_CAMPAIGNS.map((c, i) => {
-        if (i === 0) {
-          const addedFlags = 16;
+      return RAW_CAMPAIGNS.map((c) => {
+        if (c.id === 'cmp-001') {
+          const addedFlags = 14;
           return {
             ...c,
             verifiedUnits: c.verifiedUnits - addedFlags,
@@ -107,8 +119,8 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
             riskLevel: 'High' as const,
           };
         }
-        if (i === 4) {
-          const addedFlags = 6;
+        if (c.id === 'cmp-003') {
+          const addedFlags = 4;
           return {
             ...c,
             verifiedUnits: c.verifiedUnits - addedFlags,
@@ -123,7 +135,6 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
     return RAW_CAMPAIGNS;
   }, [scenario]);
 
-  // Derived alerts reflecting scenario coherently
   const scenarioAlerts = useMemo(() => {
     if (scenario === 'Completed') {
       return alerts.map((a) => ({ ...a, riskLevel: 'Resolved' as const }));
@@ -131,7 +142,6 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
     return alerts;
   }, [alerts, scenario]);
 
-  // Derived stats
   const currentStats = useMemo(() => {
     const active = currentCampaigns.filter((c) => c.status === 'Ongoing').length;
     const completedTasks = currentCampaigns.reduce((acc, c) => acc + c.verifiedUnits, 0);
@@ -150,7 +160,6 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
     };
   }, [currentCampaigns]);
 
-  // Dynamic city coverage derived from currentCampaigns
   const dynamicCityCoverage: CityCoverageItem[] = useMemo(() => {
     const cityMap = new Map<string, { submitted: number; target: number; active: number }>();
     currentCampaigns.forEach((c) => {
@@ -172,7 +181,6 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
       .sort((a, b) => b.tasksExecuted - a.tasksExecuted);
   }, [currentCampaigns]);
 
-  // Global search live results across sample entities
   const globalSearchResults = useMemo(() => {
     const q = globalQuery.trim().toLowerCase();
     if (!q) return { campaigns: [], proofs: [], alerts: [] };
@@ -188,44 +196,46 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
         .slice(0, 3),
       proofs: RAW_MEDIA_PROOFS.filter(
         (p) =>
+          p.mediaUnitId.toLowerCase().includes(q) ||
           p.taskId.toLowerCase().includes(q) ||
           p.locationString.toLowerCase().includes(q) ||
-          p.city.toLowerCase().includes(q)
+          p.mediaType.toLowerCase().includes(q)
       ).slice(0, 3),
       alerts: scenarioAlerts
         .filter(
           (a) =>
             a.alertType.toLowerCase().includes(q) ||
             a.campaignName.toLowerCase().includes(q) ||
-            a.taskId.toLowerCase().includes(q)
+            a.mediaType.toLowerCase().includes(q)
         )
         .slice(0, 2),
     };
   }, [globalQuery, currentCampaigns, scenarioAlerts]);
 
-  // Handle resolving an alert locally
   const handleResolveAlert = (alertId: string) => {
     setAlerts((prev) =>
       prev.map((a) => (a.id === alertId ? { ...a, riskLevel: 'Resolved' as const } : a))
     );
   };
 
-  // Export CSV Functionality (Pure client-side, labelled Sample data)
   const handleExportCsv = (rowsToExport: Campaign[] = currentCampaigns) => {
     const headers = [
-      'Mooviq Interactive Demo - Sample Data Export',
+      'Mooviq Interactive Sample Data Export - Not Live Client Records',
       `Scenario: ${scenario},Rows: ${rowsToExport.length},Generated At: ${new Date().toISOString()}`,
-      'Campaign ID,Campaign Name,Brand,Agency,City,Media Type,Status,Target Units,Submitted Units,Verified Units,Flagged Units,Pending Units,Completion Rate %',
+      'Campaign ID,Campaign Name,Brand,Agency,City,Media Type,Workflow,Status,Target Units,Submitted Units,Verified Units,Flagged Units,Pending Units,Completion Rate %',
     ];
 
     const rows = rowsToExport.map((c) =>
-      `"${c.id}","${c.name}","${c.brand}","${c.agency}","${c.city}","${c.mediaType}","${c.status}",${c.targetUnits},${c.submittedUnits},${c.verifiedUnits},${c.flaggedUnits},${c.pendingUnits},${c.completionRate}%`
+      `"${c.id}","${c.name}","${c.brand}","${c.agency}","${c.city}","${c.mediaType}","${c.workflowStatus}","${c.status}",${c.targetUnits},${c.submittedUnits},${c.verifiedUnits},${c.flaggedUnits},${c.pendingUnits},${c.completionRate}%`
     );
 
     const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent([...headers, ...rows].join('\n'));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', csvContent);
-    downloadAnchor.setAttribute('download', `mooviq-sample-data-${scenario.toLowerCase().replace(/\s+/g, '-')}.csv`);
+    downloadAnchor.setAttribute(
+      'download',
+      `mooviq-sample-data-${scenario.toLowerCase().replace(/\s+/g, '-')}.csv`
+    );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -243,42 +253,37 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
     { id: 'proofs', label: 'Media Proofs', icon: Camera, count: RAW_MEDIA_PROOFS.length },
     {
       id: 'alerts',
-      label: 'Exceptions & Alerts',
+      label: 'Exceptions',
       icon: AlertTriangle,
       count: scenarioAlerts.filter((a) => a.riskLevel === 'Needs review').length,
       alertTone: true,
     },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
   return (
-    <section id="explore-demo" className="scroll-mt-20 py-16 md:py-24 bg-slate-100/70 relative">
+    <section id="explore-demo" className="scroll-mt-20 py-16 md:py-24 bg-slate-100/70 relative border-b border-slate-200/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-xs font-semibold mb-3">
-            <span className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />
-            <span>Interactive demo · Sample data</span>
+            <span className="w-2 h-2 rounded-full bg-brand-600" />
+            <span>Interactive sample data — not live client records</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Don’t just watch a demo. Explore one.
+            Explore the multi-media audit workspace.
           </h2>
           <p className="mt-3 text-base sm:text-lg text-slate-600">
-            Click through a sample Mooviq workspace to see how campaign oversight can work. Filter campaigns, inspect photographic proofs, and explore anomaly review workflows.
-          </p>
-
-          <p className="mt-2 text-xs text-slate-500 font-medium">
-            This preview is not connected to live campaigns. All figures, media, and agency records are fictional local sample data.
+            Filter campaigns by media family, inspect photographic and playout-log proofs, review exceptions, and preview format-adapted audit reports.
           </p>
         </div>
 
-        {/* Scenario Selector Segmented Control */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-xs mb-6 max-w-4xl mx-auto">
+        {/* Scenario Switcher + Reset Control */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-xs mb-6 max-w-5xl mx-auto">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
             <SlidersHorizontal className="w-4 h-4 text-brand-600" />
-            <span>Try a scenario:</span>
+            <span>Demo scenario:</span>
           </div>
 
           <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80 w-full sm:w-auto">
@@ -293,54 +298,50 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                {sc === 'On track' && 'On track'}
-                {sc === 'Needs attention' && 'Needs attention'}
-                {sc === 'Completed' && 'Completed'}
+                {sc}
               </button>
             ))}
           </div>
 
-          <span className="text-[11px] text-slate-500 font-mono hidden md:inline">
-            Sample state: {scenario}
-          </span>
+          <button
+            type="button"
+            onClick={handleResetDemo}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset demo</span>
+          </button>
         </div>
 
-        {/* Main Application Window Container */}
+        {/* Workspace Window Container */}
         <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xl overflow-hidden flex flex-col max-w-6xl mx-auto">
-          
-          {/* Top Bar of the Mock Dashboard */}
+          {/* Top Bar */}
           <div className="px-5 py-3.5 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800">
-            
-            {/* Left: Window Controls + Brand */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3.5">
               <div className="flex items-center gap-1.5" aria-hidden="true">
-                <div className="w-3 h-3 rounded-full bg-rose-500" />
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               </div>
-
               <div className="h-4 w-[1px] bg-slate-700" />
-
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-md bg-brand-600 flex items-center justify-center text-white">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
-                <span className="text-sm font-bold tracking-tight text-white">
-                  Mooviq
-                </span>
+                <span className="text-sm font-bold tracking-tight text-white">Mooviq</span>
                 <span className="text-[10px] text-slate-300 bg-slate-800 px-2 py-0.5 rounded font-medium border border-slate-700">
-                  Interactive demo · Sample data
+                  Demo · Sample data
                 </span>
               </div>
             </div>
 
-            {/* Center: Functional Global Search */}
+            {/* Functional Global Search */}
             <div ref={searchWrapperRef} className="relative flex-1 max-w-sm">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                aria-label="Global sample workspace search"
-                placeholder="Search campaigns, cities, task IDs..."
+                aria-label="Search sample campaigns, media formats, unit IDs"
+                placeholder="Search campaigns, media, unit IDs..."
                 value={globalQuery}
                 onFocus={() => setGlobalSearchOpen(true)}
                 onChange={(e) => {
@@ -356,12 +357,12 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                     setGlobalSearchOpen(false);
                   }
                 }}
-                className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-brand-500"
               />
               {globalQuery && (
                 <button
                   type="button"
-                  aria-label="Clear global search"
+                  aria-label="Clear search"
                   onClick={() => {
                     setGlobalQuery('');
                     setAppliedCampaignSearch('');
@@ -372,11 +373,10 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                 </button>
               )}
 
-              {/* Live Search Results Popover */}
               {globalSearchOpen && globalQuery.trim().length > 0 && (
                 <div className="absolute left-0 right-0 mt-2 rounded-xl bg-white border border-slate-200 shadow-2xl z-30 p-2 text-left text-slate-900 max-h-80 overflow-y-auto subtle-scrollbar">
                   <div className="flex items-center justify-between px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <span>Sample Search Results</span>
+                    <span>Sample Matches</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -410,7 +410,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                         >
                           <div>
                             <span className="text-xs font-bold text-slate-900 block">{c.name}</span>
-                            <span className="text-[11px] text-slate-500">{c.city} · {c.mediaType}</span>
+                            <span className="text-[11px] text-slate-500">{c.mediaType} · {c.city}</span>
                           </div>
                           <span className="text-[10px] font-semibold text-brand-600">Campaign</span>
                         </button>
@@ -426,8 +426,8 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                           className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 transition-colors flex items-center justify-between cursor-pointer"
                         >
                           <div>
-                            <span className="text-xs font-bold text-slate-900 block font-mono">{p.taskId}</span>
-                            <span className="text-[11px] text-slate-500">{p.locationString}</span>
+                            <span className="text-xs font-bold text-slate-900 block font-mono">{p.mediaUnitId}</span>
+                            <span className="text-[11px] text-slate-500">{p.mediaType} · {p.locationString}</span>
                           </div>
                           <span className="text-[10px] font-semibold text-teal-600">Proof</span>
                         </button>
@@ -455,33 +455,24 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
               )}
             </div>
 
-            {/* Right: Demo indicator + Export Action */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => handleExportCsv(currentCampaigns)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
-                title="Download CSV of sample campaigns"
               >
                 <Download className="w-3.5 h-3.5 text-slate-400" />
                 <span>Export sample CSV</span>
               </button>
-
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium">
-                <span className="w-2 h-2 rounded-full bg-teal-400" />
-                <span>Sample Data</span>
-              </div>
             </div>
-
           </div>
 
-          {/* Body with Sidebar (Desktop) + Horizontally scrollable tabs (Mobile) */}
+          {/* Workspace Body */}
           <div className="flex flex-col md:flex-row flex-1 min-h-[580px]">
-            
-            {/* Desktop Sidebar (Left) */}
-            <aside className="hidden md:flex flex-col w-56 bg-slate-50/80 border-r border-slate-200/80 p-3 space-y-1">
+            {/* Desktop Sidebar */}
+            <aside className="hidden md:flex flex-col w-52 bg-slate-50/80 border-r border-slate-200/80 p-3 space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-2">
-                Workspace Areas
+                Demo Navigation
               </span>
 
               {navItems.map((item) => {
@@ -509,13 +500,15 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                     </div>
 
                     {item.count !== undefined && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md ${
-                        isActive
-                          ? 'bg-brand-700 text-white'
-                          : item.alertTone && item.count > 0
-                          ? 'bg-rose-100 text-rose-700 font-bold'
-                          : 'bg-slate-200 text-slate-600'
-                      }`}>
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md ${
+                          isActive
+                            ? 'bg-brand-700 text-white'
+                            : item.alertTone && item.count > 0
+                            ? 'bg-rose-100 text-rose-700 font-bold'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
                         {item.count}
                       </span>
                     )}
@@ -523,21 +516,20 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                 );
               })}
 
-              {/* Sidebar bottom informational card */}
               <div className="mt-auto pt-6">
                 <div className="p-3 rounded-xl bg-white border border-slate-200 text-[11px] text-slate-500 space-y-1">
                   <div className="flex items-center gap-1 font-bold text-slate-800">
                     <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
-                    <span>Read-Only Sandbox</span>
+                    <span>Sample Sandbox</span>
                   </div>
                   <p className="leading-snug">
-                    Interactive demo · Sample data. Zero backend connections or real client metrics.
+                    Interactive sample data — not live client records.
                   </p>
                 </div>
               </div>
             </aside>
 
-            {/* Mobile Horizontal Tabs */}
+            {/* Mobile Scroll Tabs */}
             <div className="md:hidden flex overflow-x-auto p-2 bg-slate-50 border-b border-slate-200 gap-1 subtle-scrollbar">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -561,9 +553,11 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                     <Icon className="w-3.5 h-3.5" />
                     <span>{item.label}</span>
                     {item.count !== undefined && (
-                      <span className={`text-[10px] font-mono px-1 rounded ${
-                        isActive ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-600'
-                      }`}>
+                      <span
+                        className={`text-[10px] font-mono px-1 rounded ${
+                          isActive ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
                         {item.count}
                       </span>
                     )}
@@ -572,7 +566,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
               })}
             </div>
 
-            {/* Main Content Area */}
+            {/* Main Content */}
             <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-50/40 overflow-y-auto max-h-[850px] subtle-scrollbar">
               {activeTab === 'overview' && (
                 <OverviewTab
@@ -595,6 +589,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                 <CampaignsTab
                   campaigns={currentCampaigns}
                   initialSearchQuery={appliedCampaignSearch}
+                  initialFamilyFilter={familyPassThrough}
                   onSelectCampaign={(c) => setSelectedCampaign(c)}
                   onExportCsv={(filteredRows) => handleExportCsv(filteredRows)}
                 />
@@ -605,6 +600,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                   proofs={RAW_MEDIA_PROOFS}
                   campaigns={currentCampaigns}
                   initialCampaignId={targetProofsCampaignId}
+                  initialFamilyFilter={familyPassThrough}
                   onOpenProofModal={(p) => setSelectedProof(p)}
                 />
               )}
@@ -614,37 +610,32 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
                   alerts={scenarioAlerts}
                   campaigns={currentCampaigns}
                   initialCampaignId={targetAlertsCampaignId}
+                  initialFamilyFilter={familyPassThrough}
                   onOpenAlert={(a) => setSelectedAlert(a)}
                   onResolveAlert={handleResolveAlert}
                 />
               )}
 
-              {activeTab === 'analytics' && (
-                <AnalyticsTab
+              {activeTab === 'reports' && (
+                <ReportsTab
                   monthlyData={MONTHLY_AUDIT_HISTORY}
                   campaigns={currentCampaigns}
                 />
               )}
             </main>
-
           </div>
 
-          {/* Sub-footer inside demo frame */}
           <div className="px-5 py-2.5 bg-slate-100/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-teal-500" />
-              <span>Interactive demo · Sample data · Scenario: <strong>{scenario}</strong></span>
+            <span>
+              Interactive sample data — not live client records · Scenario: <strong>{scenario}</strong>
             </span>
             <span>
-              <strong>Mooviq</strong> by EraZero AI · Local workspace preview
+              <strong>Mooviq</strong> by EraZero
             </span>
           </div>
-
         </div>
-
       </div>
 
-      {/* Campaign Details Drawer */}
       <CampaignDrawer
         campaign={selectedCampaign}
         proofs={RAW_MEDIA_PROOFS}
@@ -663,13 +654,11 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({
         }}
       />
 
-      {/* Proof Modal */}
       <ProofModal
         proof={selectedProof}
         onClose={() => setSelectedProof(null)}
       />
 
-      {/* Alert Review Drawer */}
       <AlertDrawer
         alert={selectedAlert}
         onClose={() => setSelectedAlert(null)}
