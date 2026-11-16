@@ -60,3 +60,4 @@ SELECT
   utm_params
 FROM public.mooviq_enquiries
 ORDER BY created_at DESC;
+

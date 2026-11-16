@@ -14,7 +14,7 @@ import { FAQ } from './components/FAQ';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { MediaTypeItem } from './config/mediaAuditCatalog';
-import { FixedMediaRate } from './config/pricingConfig';
+import { PublicMediaFormat } from './config/publicMediaCatalog';
 import { QuotePrefillPayload } from './types/mooviq';
 
 function scrollToSection(sectionId: string) {
@@ -33,7 +33,8 @@ function scrollToSection(sectionId: string) {
 export const App: React.FC = () => {
   const [activeDemoTab, setActiveDemoTab] = useState<DemoTabId>('overview');
   const [addedQuoteMedia, setAddedQuoteMedia] = useState<MediaTypeItem | null>(null);
-  const [addedQuoteRate, setAddedQuoteRate] = useState<FixedMediaRate | null>(null);
+  const [addedQuoteFormat, setAddedQuoteFormat] = useState<PublicMediaFormat | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<'starter' | 'growth' | 'enterprise'>('growth');
   const [contactPrefill, setContactPrefill] = useState<QuotePrefillPayload | null>(null);
 
   useEffect(() => {
@@ -58,8 +59,13 @@ export const App: React.FC = () => {
     scrollToSection('quote-builder');
   };
 
-  const handleAddRateToQuoteBuilder = (rate?: FixedMediaRate) => {
-    if (rate) setAddedQuoteRate(rate);
+  const handleAddFormatToQuoteBuilder = (format?: PublicMediaFormat) => {
+    if (format) setAddedQuoteFormat(format);
+    scrollToSection('quote-builder');
+  };
+
+  const handleSelectPlan = (plan: 'starter' | 'growth' | 'enterprise') => {
+    setSelectedPlanId(plan);
     scrollToSection('quote-builder');
   };
 
@@ -103,37 +109,31 @@ export const App: React.FC = () => {
         {/* 7. How It Works */}
         <HowItWorks onSelectDemoTab={(tab) => handleExploreDemo(tab)} />
 
-        {/* 8. Field-First Capture App & Optional WhatsApp Alerts */}
+        {/* 8. Field-First Capture App: Realistic Animated WhatsApp Workflow */}
         <FieldCaptureWorkflow
           onBookDemoClick={() => handleOpenContactWithPrefill({ enquiryType: 'Book a demo' })}
         />
 
         {/* 9. Zero Standard Onboarding Charges Strip */}
         <ZeroOnboardingBanner
-          onExplorePricingClick={() => scrollToSection('pricing')}
+          onCreateAuditPlanClick={() => scrollToSection('quote-builder')}
         />
 
-        {/* 10. Pricing (Prepaid Credit Wallets + Dashboard Subscriptions + 22 Fixed Rates + Additional Media) */}
+        {/* 10. Build Your Media Audit Plan (Public Pricing Removed) */}
         <Pricing
-          onSelectPricingCta={({ enquiryType, walletPackage, note, dashboardUsers }) =>
-            handleOpenContactWithPrefill({
-              enquiryType,
-              walletPackageId: walletPackage?.id,
-              walletPackageName: walletPackage?.name,
-              dashboardUsers,
-              summaryText: note,
-            })
-          }
-          onJumpToQuoteBuilder={handleAddRateToQuoteBuilder}
+          onSelectPlanCta={handleSelectPlan}
+          onJumpToQuoteBuilder={handleAddFormatToQuoteBuilder}
+          onTalkToTeamClick={() => scrollToSection('contact')}
         />
 
-        {/* 11. Multi-Media Quote Builder */}
+        {/* 11. Multi-Media Lead-Gated Quote Builder */}
         <QuoteBuilder
           externalAddedMedia={addedQuoteMedia}
-          externalAddedRate={addedQuoteRate}
+          externalAddedFormat={addedQuoteFormat}
+          selectedPlanId={selectedPlanId}
           onExternalMediaConsumed={() => {
             setAddedQuoteMedia(null);
-            setAddedQuoteRate(null);
+            setAddedQuoteFormat(null);
           }}
           onSubmitToContact={(payload) => handleOpenContactWithPrefill(payload)}
         />

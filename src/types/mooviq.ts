@@ -130,13 +130,70 @@ export type EnquiryType =
 
 export interface QuoteMediaRow {
   id: string;
-  mediaRateId: string; // references FixedMediaRate.id or custom media id
+  mediaRateId: string;
   mediaName: string;
   category: string;
-  units: number; // units, locations, vehicles, stores, promoters
-  multiplier: number; // inspections per unit, months, days
+  units: number;
+  multiplier: number;
   cityScope: string;
+  frequency?: 'One-time' | 'Weekly' | 'Monthly' | 'Custom';
+  specialNotes?: string;
   isCustomQuote?: boolean;
+}
+
+export interface UnlockedQuotationItem {
+  mediaId: string;
+  mediaName: string;
+  category: string;
+  units: number;
+  multiplier: number;
+  billableQuantity: number;
+  billingUnit: string;
+  cityScope: string;
+  isCustomQuote: boolean;
+  unitPriceInr: number | null;
+  creditsPerUnit: number | null;
+  totalCredits: number | null;
+  lineCostInr: number | null;
+}
+
+export interface UnlockedQuotation {
+  quotationRef: string;
+  generatedAt: string;
+  client: {
+    fullName: string;
+    companyName: string;
+    mobileNumber: string;
+    workEmail: string;
+  };
+  dashboard: {
+    users: number;
+    monthlyFeeInr: number;
+    perUserRateInr: number;
+  };
+  items: UnlockedQuotationItem[];
+  totals: {
+    totalMediaUnits: number;
+    totalBillableEvents: number;
+    totalCredits: number;
+    auditSubtotalInr: number;
+    dashboardMonthlyInr: number;
+    gstInr: number;
+    totalEstimateWithGstInr: number;
+  };
+  customQuoteItemsCount: number;
+  hasCustomQuoteItems: boolean;
+  walletRecommendation: {
+    packageName: string;
+    packagePriceInr: number;
+    packageCredits: number;
+    message: string;
+  };
+  onboardingBenefit: {
+    standardOnboardingFeeInr: 0;
+    label: string;
+  };
+  termsNotes: string[];
 }
 
 export interface QuotePrefillPayload {

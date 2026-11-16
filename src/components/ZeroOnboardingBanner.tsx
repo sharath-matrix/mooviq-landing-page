@@ -3,11 +3,11 @@ import { Sparkles, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { trackMooviqEvent } from '../lib/analytics';
 
 interface ZeroOnboardingBannerProps {
-  onExplorePricingClick: () => void;
+  onCreateAuditPlanClick: () => void;
 }
 
 export const ZeroOnboardingBanner: React.FC<ZeroOnboardingBannerProps> = ({
-  onExplorePricingClick,
+  onCreateAuditPlanClick,
 }) => {
   return (
     <section className="py-8 bg-slate-50 border-t border-b border-slate-200/80">
@@ -28,38 +28,37 @@ export const ZeroOnboardingBanner: React.FC<ZeroOnboardingBannerProps> = ({
             <div className="max-w-3xl space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold tracking-wide uppercase">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>₹0 Standard Onboarding Charges</span>
+                <span>Standard Onboarding Benefit</span>
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Start Auditing Without Setup Fees
+                Get Started with ₹0 Standard Onboarding Charges
               </h2>
 
               <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                Get started with Mooviq without a standard platform setup fee. Create campaigns,
-                organize media audits, and access your audit dashboard with transparent usage-based pricing.
+                Start organizing campaigns and media audits without a standard platform setup fee.
               </p>
 
               {/* Three supporting bullets */}
               <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-200">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>No standard setup fee</span>
+                  <span>No standard onboarding fee</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Credit-based audit pricing</span>
+                  <span>Flexible media auditing</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Flexible dashboard access</span>
+                  <span>Centralized campaign visibility</span>
                 </div>
               </div>
 
               <p className="text-[11px] text-slate-400 pt-1 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 <span>
-                  Standard onboarding included at ₹0. Custom API integrations, bespoke configurations,
+                  Standard onboarding is free. Custom API integrations, bespoke development, data migration,
                   or specialized team training are scoped and quoted separately.
                 </span>
               </p>
@@ -70,12 +69,12 @@ export const ZeroOnboardingBanner: React.FC<ZeroOnboardingBannerProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  trackMooviqEvent('cta_click', { location: 'zero_onboarding_strip', action: 'explore_pricing' });
-                  onExplorePricingClick();
+                  trackMooviqEvent('cta_click', { location: 'zero_onboarding_strip', action: 'create_audit_plan' });
+                  onCreateAuditPlanClick();
                 }}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg cursor-pointer"
               >
-                <span>Explore Pricing</span>
+                <span>Create Your Audit Plan</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -85,4 +84,3 @@ export const ZeroOnboardingBanner: React.FC<ZeroOnboardingBannerProps> = ({
     </section>
   );
 };
-

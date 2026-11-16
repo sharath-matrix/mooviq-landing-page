@@ -1,11 +1,11 @@
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { mkdirSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const tempDir = mkdtempSync(join(tmpdir(), 'mooviq-test-'));
-const outfile = join(tempDir, 'mooviq.test.mjs');
+const tempDir = resolve('.test-tmp');
+mkdirSync(tempDir, { recursive: true });
+const outfile = resolve(tempDir, 'mooviq.test.mjs');
 
 try {
   await build({
@@ -21,3 +21,4 @@ try {
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
+
