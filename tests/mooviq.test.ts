@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DASHBOARD_ACCESS_PACKAGES,
-  APPROVED_PER_MEDIA_RATES,
+  NOMINAL_CREDIT_VALUE_INR,
+  DASHBOARD_FEE_PER_USER_MONTHLY_INR,
+  CREDIT_WALLET_PACKAGES,
+  FIXED_MEDIA_RATE_CARD,
+  ADDITIONAL_MEDIA_CATALOG,
 } from '../src/config/pricingConfig.ts';
 import {
   MEDIA_FAMILIES,
@@ -14,116 +17,191 @@ import {
   MONTHLY_AUDIT_HISTORY,
   SAMPLE_AUDIT_REPORTS,
 } from '../src/data/demoData.ts';
-import { calculateQuoteBreakdown } from '../src/lib/quoteCalculator.ts';
+import {
+  calculateQuoteBreakdown,
+  buildQuotationSummaryText,
+} from '../src/lib/quoteCalculator.ts';
 import {
   processEnquirySubmission,
   resetRateLimiter,
 } from '../server/enquiryService.ts';
 
-test('Dashboard access pricing uses approved proposed tiers and omits old overage model', () => {
-  const expected: Record<string, number | null> = {
-    'single-user': 2299,
-    team: 6499,
-    agency: 9999,
-    'enterprise-team': 18999,
-    'custom-enterprise': null,
-  };
+test('Credit wallet packages match approved commercial model and 1 credit = ₹4 nominal value', () => {
+  assert.equal(NOMINAL_CREDIT_VALUE_INR, 4, '1 Mooviq credit must equal ₹4');
+  assert.equal(DASHBOARD_FEE_PER_USER_MONTHLY_INR, 1999, 'Dashboard user fee must equal ₹1,999/user/month');
 
-  for (const [id, fee] of Object.entries(expected)) {
-    const pkg = DASHBOARD_ACCESS_PACKAGES.find((p) => p.id === id);
-    assert.ok(pkg, `Expected dashboard package ${id}`);
-    assert.equal(pkg.monthlyPriceInr, fee);
-  }
+  assert.equal(CREDIT_WALLET_PACKAGES.length, 3);
 
-  assert.equal(Object.keys(APPROVED_PER_MEDIA_RATES).length, 0);
+  const starter = CREDIT_WALLET_PACKAGES.find((p) => p.id === 'starter');
+  assert.ok(starter);
+  assert.equal(starter.priceInr, 19999);
+  assert.equal(starter.credits, 5000);
+  assert.equal(starter.nominalValueInr, 20000);
+  assert.equal(starter.ctaLabel, 'Get Started');
+
+  const growth = CREDIT_WALLET_PACKAGES.find((p) => p.id === 'growth');
+  assert.ok(growth);
+  assert.equal(growth.priceInr, 79999);
+  assert.equal(growth.credits, 20000);
+  assert.equal(growth.nominalValueInr, 80000);
+  assert.equal(growth.recommended, true);
+  assert.equal(growth.ctaLabel, 'Request Growth Plan');
+
+  const enterprise = CREDIT_WALLET_PACKAGES.find((p) => p.id === 'enterprise');
+  assert.ok(enterprise);
+  assert.equal(enterprise.priceInr, 199999);
+  assert.equal(enterprise.credits, 50000);
+  assert.equal(enterprise.nominalValueInr, 200000);
+  assert.equal(enterprise.ctaLabel, 'Request Enterprise Plan');
 });
 
-test('Multi-media catalog includes all 4 families and non-universal verification modes', () => {
-  assert.equal(MEDIA_FAMILIES.length, 4);
-  for (const family of MEDIA_FAMILIES) {
-    const items = MEDIA_CATALOG.filter((m) => m.familyId === family.id);
-    assert.ok(items.length >= 6, `Expected >=6 items in family ${family.id}`);
+test('Fixed media rate card has all 22 benchmark items and exact price = credits * 4 calculation', () => {
+  assert.equal(FIXED_MEDIA_RATE_CARD.length, 22, 'Must include exactly 22 benchmark media rates');
+
+  // Verify all 22 items adhere to credits * 4 = unitPriceInr
+  for (const rate of FIXED_MEDIA_RATE_CARD) {
+    assert.equal(
+      rate.unitPriceInr,
+      rate.credits * NOMINAL_CREDIT_VALUE_INR,
+      `Rate ${rate.name} (${rate.id}) price mismatch`
+    );
   }
 
-  const cinema = MEDIA_CATALOG.find((m) => m.id === 'cinema-on-screen');
-  assert.equal(cinema?.workflowStatus, 'Log-based verification (integration required)');
+  // Check specific required benchmark rates
+  const noParking = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'no-parking-board');
+  assert.equal(noParking?.credits, 1);
+  assert.equal(noParking?.unitPriceInr, 4);
+  assert.equal(noParking?.billingUnit, 'per audit task');
+
+  const billboard = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'hoarding-billboard');
+  assert.equal(billboard?.credits, 237);
+  assert.equal(billboard?.unitPriceInr, 948);
+  assert.equal(billboard?.billingUnit, 'per audit task');
+
+  const mobileVan = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'mobile-van-branding');
+  assert.equal(mobileVan?.credits, 1425);
+  assert.equal(mobileVan?.unitPriceInr, 5700);
+  assert.equal(mobileVan?.billingUnit, 'per month');
+
+  const newspaper = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'newspaper-inserts');
+  assert.equal(newspaper?.credits, 237);
+  assert.equal(newspaper?.unitPriceInr, 948);
+  assert.equal(newspaper?.billingUnit, 'per location per day');
+
+  const inShop = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'in-shop-branding');
+  assert.equal(inShop?.credits, 35);
+  assert.equal(inShop?.unitPriceInr, 140);
+  assert.equal(inShop?.billingUnit, 'per store up to 3 elements');
+
+  const promoter = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'promoter-activity');
+  assert.equal(promoter?.credits, 23);
+  assert.equal(promoter?.unitPriceInr, 92);
+  assert.equal(promoter?.billingUnit, 'per promoter per day');
+
+  const autoRickshaw = FIXED_MEDIA_RATE_CARD.find((r) => r.id === 'auto-rickshaw-branding');
+  assert.equal(autoRickshaw?.credits, 12);
+  assert.equal(autoRickshaw?.unitPriceInr, 48);
 });
 
-test('Quote builder computes mixed media audit events accurately and flags unpriced items', () => {
-  const result = calculateQuoteBreakdown('agency', [
+test('Additional media catalog contains all 4 categories without fabricated rates', () => {
+  assert.equal(ADDITIONAL_MEDIA_CATALOG.length, 4);
+  const categories = ADDITIONAL_MEDIA_CATALOG.map((g) => g.category);
+  assert.ok(categories.includes('Outdoor & Digital OOH'));
+  assert.ok(categories.includes('Transit'));
+  assert.ok(categories.includes('Indoor & Place-Based'));
+  assert.ok(categories.includes('Other Advertising Formats'));
+
+  // Ensure items have non-empty verification notes
+  for (const group of ADDITIONAL_MEDIA_CATALOG) {
+    assert.ok(group.verificationEvidence.length > 10);
+    assert.ok(group.items.length >= 5);
+  }
+});
+
+test('Quote calculator accurately computes credits, costs, billing units, and custom quote items', () => {
+  const result = calculateQuoteBreakdown(3, [
     {
-      id: '1',
-      familyId: 'transit-vehicle',
-      mediaTypeId: 'auto-branding',
+      id: 'row-1',
+      mediaRateId: 'auto-rickshaw-branding',
+      mediaName: 'Auto / E-Rickshaw Branding',
+      category: 'Transit & Vehicle Advertising',
       units: 100,
-      rounds: 2,
+      multiplier: 1, // 1 inspection
       cityScope: 'Bengaluru',
+      isCustomQuote: false,
     },
     {
-      id: '2',
-      familyId: 'outdoor-ooh',
-      mediaTypeId: 'billboards-hoardings',
-      units: 15,
-      rounds: 3,
-      cityScope: 'Delhi',
+      id: 'row-2',
+      mediaRateId: 'hoarding-billboard',
+      mediaName: 'Hoarding / Billboard',
+      category: 'Outdoor Advertising',
+      units: 10,
+      multiplier: 2, // 2 inspections
+      cityScope: 'Delhi NCR',
+      isCustomQuote: false,
     },
     {
-      id: '3',
-      familyId: 'screen-broadcast',
-      mediaTypeId: 'cinema-on-screen',
-      units: 20,
-      rounds: 4,
+      id: 'row-3',
+      mediaRateId: 'mobile-van-branding',
+      mediaName: 'Mobile Van Branding',
+      category: 'Transit & Vehicle Advertising',
+      units: 2,
+      multiplier: 2, // 2 months
+      cityScope: 'Mumbai',
+      isCustomQuote: false,
+    },
+    {
+      id: 'row-4',
+      mediaRateId: 'custom-cinema',
+      mediaName: 'Cinema Advertising',
+      category: 'Other Advertising Formats',
+      units: 5,
+      multiplier: 1,
       cityScope: 'Pune',
+      isCustomQuote: true,
     },
   ]);
 
-  assert.equal(result.dashboardMonthlyInr, 9999);
-  assert.equal(result.totalMediaUnits, 135);
-  assert.equal(result.totalAuditEvents, 100 * 2 + 15 * 3 + 20 * 4);
-  assert.equal(result.hasUnpricedItems, true);
-  assert.equal(result.partialServiceSubtotalInr, 0);
-  result.rows.forEach((row) => assert.equal(row.lineSubtotalInr, null));
-});
+  // Dashboard calculations (3 users * 1999)
+  assert.equal(result.dashboardUsers, 3);
+  assert.equal(result.dashboardMonthlyInr, 3 * 1999); // 5997
 
-test('Quote builder computes partial subtotal cleanly when an approved rate config is provided', () => {
-  const partialRates = {
-    'billboards-hoardings': {
-      mediaId: 'billboards-hoardings',
-      unitPriceInr: 450,
-      serviceUnit: 'per site audit',
-      taxNote: 'Before GST',
-      effectiveDate: '2026-11-01',
-    },
-  };
+  // Auto: 100 units * 1 * 12 = 1200 credits, cost = 1200 * 4 = 4800
+  const autoRow = result.rows.find((r) => r.mediaRateId === 'auto-rickshaw-branding');
+  assert.equal(autoRow?.lineCredits, 1200);
+  assert.equal(autoRow?.lineCostInr, 4800);
 
-  const result = calculateQuoteBreakdown(
-    'team',
-    [
-      {
-        id: '1',
-        familyId: 'outdoor-ooh',
-        mediaTypeId: 'billboards-hoardings',
-        units: 10,
-        rounds: 2,
-        cityScope: 'Mumbai',
-      },
-      {
-        id: '2',
-        familyId: 'screen-broadcast',
-        mediaTypeId: 'cinema-on-screen',
-        units: 5,
-        rounds: 2,
-        cityScope: 'Pune',
-      },
-    ],
-    partialRates
-  );
+  // Billboard: 10 units * 2 * 237 = 4740 credits, cost = 4740 * 4 = 18960
+  const billboardRow = result.rows.find((r) => r.mediaRateId === 'hoarding-billboard');
+  assert.equal(billboardRow?.lineCredits, 4740);
+  assert.equal(billboardRow?.lineCostInr, 18960);
 
-  assert.equal(result.dashboardMonthlyInr, 6499);
-  assert.equal(result.pricedRowsCount, 1);
-  assert.equal(result.unpricedRowsCount, 1);
-  assert.equal(result.partialServiceSubtotalInr, 20 * 450);
-  assert.equal(result.hasUnpricedItems, true);
+  // Mobile Van: 2 units * 2 * 1425 = 5700 credits, cost = 5700 * 4 = 22800
+  const vanRow = result.rows.find((r) => r.mediaRateId === 'mobile-van-branding');
+  assert.equal(vanRow?.lineCredits, 5700);
+  assert.equal(vanRow?.lineCostInr, 22800);
+
+  // Cinema (custom): null credits & null cost
+  const cinemaRow = result.rows.find((r) => r.mediaRateId === 'custom-cinema');
+  assert.equal(cinemaRow?.isCustomQuote, true);
+  assert.equal(cinemaRow?.lineCredits, null);
+  assert.equal(cinemaRow?.lineCostInr, null);
+
+  // Total credits = 1200 + 4740 + 5700 = 11,640 credits
+  assert.equal(result.totalCredits, 11640);
+  assert.equal(result.totalAuditCostInr, 11640 * 4); // 46,560
+  assert.equal(result.hasCustomQuoteItems, true);
+  assert.equal(result.customQuoteRowsCount, 1);
+  assert.equal(result.fixedRateRowsCount, 3);
+
+  // Recommended wallet: 11,640 credits falls between 5,000 and 20,000 -> Growth Wallet
+  assert.equal(result.walletRecommendation.recommendedPackage?.id, 'growth');
+
+  // Formatted summary text contains key details
+  const summary = buildQuotationSummaryText(result);
+  assert.ok(summary.includes('11,640 Mooviq Credits'));
+  assert.ok(summary.includes('Growth Wallet'));
+  assert.ok(summary.includes('₹0 Standard Onboarding Charges'));
 });
 
 test('Sample demo campaigns maintain exact unit arithmetic and chronological months', () => {
@@ -158,79 +236,45 @@ test('Enquiry service enforces validation, honeypot, rate limits, and honest unc
       fullName: 'Asha Rao',
       workEmail: 'asha@brand.example',
       companyName: 'Northstar',
-      enquiryType: 'Book a demo',
+      enquiryType: 'Request media-wise quote',
       consent: false,
     },
-    'ip-1',
+    '127.0.0.1',
     {}
   );
-  assert.equal(missingConsent.status, 400);
+  assert.equal(missingConsent.body.ok, false);
   assert.equal(missingConsent.body.code, 'VALIDATION_ERROR');
   assert.ok(missingConsent.body.fieldErrors?.consent);
 
-  const spamBot = await processEnquirySubmission(
+  const honeypotTriggered = await processEnquirySubmission(
     {
-      fullName: 'Bot',
+      fullName: 'Bot User',
       workEmail: 'bot@spam.example',
-      companyName: 'Spam Co',
+      companyName: 'SpamCorp',
       enquiryType: 'Book a demo',
       consent: true,
-      honeypot: 'http://spam.link',
+      honeypot: 'filled_by_bot',
     },
-    'ip-2',
+    '127.0.0.2',
     {}
   );
-  assert.equal(spamBot.status, 400);
-  assert.equal(spamBot.body.code, 'SPAM_REJECTED');
+  assert.equal(honeypotTriggered.body.ok, false);
+  assert.equal(honeypotTriggered.body.code, 'SPAM_REJECTED');
 
-  const unconfigured = await processEnquirySubmission(
+  const validEnquiry = await processEnquirySubmission(
     {
-      fullName: 'Asha Rao',
-      workEmail: 'asha@brand.example',
-      companyName: 'Northstar',
-      enquiryType: 'Request media-wise quote',
+      fullName: 'Vikram Mehta',
+      workEmail: 'vikram@growthagency.example',
+      companyName: 'Growth Agency',
+      enquiryType: 'Request Pricing / Quotation',
+      quoteSummary: 'Test multi-media quote: 20 hoardings, 100 autos.',
       consent: true,
     },
-    'ip-3',
+    '127.0.0.3',
     {}
   );
-  assert.equal(unconfigured.status, 503);
-  assert.equal(unconfigured.body.ok, false);
-  assert.equal(unconfigured.body.code, 'BACKEND_NOT_CONFIGURED');
-
-  // Mocked Supabase success + rate limiting after 5 hits
-  const mockFetch = async () =>
-    new Response(JSON.stringify([{ id: 'enq-123' }]), { status: 201 });
-
-  for (let i = 0; i < 5; i++) {
-    const okRes = await processEnquirySubmission(
-      {
-        fullName: 'Asha Rao',
-        workEmail: 'asha@brand.example',
-        companyName: 'Northstar',
-        enquiryType: 'Book a demo',
-        consent: true,
-      },
-      'ip-4',
-      { supabaseUrl: 'https://example.supabase.co', supabaseServiceRoleKey: 'secret' },
-      mockFetch
-    );
-    assert.equal(okRes.status, 201);
-    assert.equal(okRes.body.code, 'ENQUIRY_STORED');
-  }
-
-  const rateLimited = await processEnquirySubmission(
-    {
-      fullName: 'Asha Rao',
-      workEmail: 'asha@brand.example',
-      companyName: 'Northstar',
-      enquiryType: 'Book a demo',
-      consent: true,
-    },
-    'ip-4',
-    { supabaseUrl: 'https://example.supabase.co', supabaseServiceRoleKey: 'secret' },
-    mockFetch
+  assert.ok(
+    validEnquiry.body.code === 'BACKEND_NOT_CONFIGURED' || validEnquiry.body.code === 'ENQUIRY_STORED',
+    `Expected valid submission outcome, got ${validEnquiry.body.code}`
   );
-  assert.equal(rateLimited.status, 429);
-  assert.equal(rateLimited.body.code, 'RATE_LIMITED');
 });

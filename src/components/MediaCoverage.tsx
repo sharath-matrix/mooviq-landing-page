@@ -523,3 +523,4 @@ export const MediaCoverage: React.FC<MediaCoverageProps> = ({
     </section>
   );
 };
+

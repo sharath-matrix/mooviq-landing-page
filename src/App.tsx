@@ -7,12 +7,14 @@ import { MediaCoverage } from './components/MediaCoverage';
 import { InteractiveDemo, DemoTabId } from './components/demo/InteractiveDemo';
 import { HowItWorks } from './components/HowItWorks';
 import { FieldCaptureWorkflow } from './components/FieldCaptureWorkflow';
+import { ZeroOnboardingBanner } from './components/ZeroOnboardingBanner';
 import { Pricing } from './components/Pricing';
 import { QuoteBuilder } from './components/QuoteBuilder';
 import { FAQ } from './components/FAQ';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { MediaTypeItem } from './config/mediaAuditCatalog';
+import { FixedMediaRate } from './config/pricingConfig';
 import { QuotePrefillPayload } from './types/mooviq';
 
 function scrollToSection(sectionId: string) {
@@ -31,6 +33,7 @@ function scrollToSection(sectionId: string) {
 export const App: React.FC = () => {
   const [activeDemoTab, setActiveDemoTab] = useState<DemoTabId>('overview');
   const [addedQuoteMedia, setAddedQuoteMedia] = useState<MediaTypeItem | null>(null);
+  const [addedQuoteRate, setAddedQuoteRate] = useState<FixedMediaRate | null>(null);
   const [contactPrefill, setContactPrefill] = useState<QuotePrefillPayload | null>(null);
 
   useEffect(() => {
@@ -52,6 +55,11 @@ export const App: React.FC = () => {
 
   const handleAddMediaToQuoteBuilder = (item: MediaTypeItem) => {
     setAddedQuoteMedia(item);
+    scrollToSection('quote-builder');
+  };
+
+  const handleAddRateToQuoteBuilder = (rate?: FixedMediaRate) => {
+    if (rate) setAddedQuoteRate(rate);
     scrollToSection('quote-builder');
   };
 
@@ -100,34 +108,44 @@ export const App: React.FC = () => {
           onBookDemoClick={() => handleOpenContactWithPrefill({ enquiryType: 'Book a demo' })}
         />
 
-        {/* 9. Pricing (Dashboard Access + Media Audit Services) */}
+        {/* 9. Zero Standard Onboarding Charges Strip */}
+        <ZeroOnboardingBanner
+          onExplorePricingClick={() => scrollToSection('pricing')}
+        />
+
+        {/* 10. Pricing (Prepaid Credit Wallets + Dashboard Subscriptions + 22 Fixed Rates + Additional Media) */}
         <Pricing
-          onSelectPricingCta={({ enquiryType, dashboardPlan, note }) =>
+          onSelectPricingCta={({ enquiryType, walletPackage, note, dashboardUsers }) =>
             handleOpenContactWithPrefill({
               enquiryType,
-              dashboardPlanId: dashboardPlan?.id,
-              dashboardPlanLabel: dashboardPlan?.name,
+              walletPackageId: walletPackage?.id,
+              walletPackageName: walletPackage?.name,
+              dashboardUsers,
               summaryText: note,
             })
           }
-          onJumpToQuoteBuilder={() => scrollToSection('quote-builder')}
+          onJumpToQuoteBuilder={handleAddRateToQuoteBuilder}
         />
 
-        {/* 10. Multi-Media Quote Builder */}
+        {/* 11. Multi-Media Quote Builder */}
         <QuoteBuilder
           externalAddedMedia={addedQuoteMedia}
-          onExternalMediaConsumed={() => setAddedQuoteMedia(null)}
+          externalAddedRate={addedQuoteRate}
+          onExternalMediaConsumed={() => {
+            setAddedQuoteMedia(null);
+            setAddedQuoteRate(null);
+          }}
           onSubmitToContact={(payload) => handleOpenContactWithPrefill(payload)}
         />
 
-        {/* 11. FAQs */}
+        {/* 12. FAQs */}
         <FAQ />
 
-        {/* 12. Contact & Lead Capture */}
+        {/* 13. Contact & Lead Capture */}
         <ContactSection prefill={contactPrefill} />
       </main>
 
-      {/* 13. CTA Banner & Footer */}
+      {/* 14. CTA Banner & Footer */}
       <Footer
         onExploreDemoClick={() => handleExploreDemo('overview')}
         onBookDemoClick={() => handleOpenContactWithPrefill({ enquiryType: 'Book a demo' })}

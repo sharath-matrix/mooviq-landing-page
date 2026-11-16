@@ -11,7 +11,7 @@ export const FAQ: React.FC = () => {
     },
     {
       q: 'How is an audit priced?',
-      a: 'Mooviq separates software subscriptions from execution services. Dashboard access packages are billed monthly per user tier (starting at ₹2,299/month for a Single User before GST). Media audit services are quoted per media plan based on media format, asset quantity, audit frequency/rounds, city density, location accessibility, and onsite visits versus log reconciliation.',
+      a: 'Mooviq operates on a transparent Prepaid Credit Wallet + Dashboard Subscription model. 1 Mooviq Credit = ₹4 nominal value. Different media formats consume credits according to their verification complexity (from 1 credit for No Parking boards up to 237 credits for Billboards). Credit wallets start at ₹19,999 (5,000 credits) with ₹0 standard onboarding charges. Dashboard workspace access is billed separately at ₹1,999 / user / month before GST.',
     },
     {
       q: 'Does dashboard pricing include field visits?',

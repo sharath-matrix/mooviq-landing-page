@@ -1,6 +1,7 @@
 export type ValidEnquiryType =
   | 'Book a demo'
   | 'Request media-wise quote'
+  | 'Request Pricing / Quotation'
   | 'Discuss pilot'
   | 'Product question';
 
@@ -50,6 +51,7 @@ export interface EnquiryHandlerResponse {
 const ALLOWED_ENQUIRY_TYPES: ValidEnquiryType[] = [
   'Book a demo',
   'Request media-wise quote',
+  'Request Pricing / Quotation',
   'Discuss pilot',
   'Product question',
 ];
@@ -324,3 +326,4 @@ export async function processEnquirySubmission(
     },
   };
 }
+

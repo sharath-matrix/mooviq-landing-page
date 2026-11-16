@@ -1,7 +1,10 @@
 export type MooviqAnalyticsEvent =
   | 'cta_click'
   | 'quote_builder_update'
+  | 'quote_builder_add_row'
+  | 'quote_builder_reset'
   | 'quote_builder_submit'
+  | 'rate_table_add_to_quote'
   | 'form_start'
   | 'form_submit_success'
   | 'form_submit_error';
@@ -38,3 +41,4 @@ export function trackMooviqEvent(event: MooviqAnalyticsEvent, payload: Analytics
 
   window.dispatchEvent(new CustomEvent('mooviq:analytics', { detail: eventRecord }));
 }
+

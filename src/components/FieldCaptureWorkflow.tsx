@@ -251,3 +251,4 @@ export const FieldCaptureWorkflow: React.FC<FieldCaptureWorkflowProps> = ({
     </section>
   );
 };
+

@@ -124,24 +124,34 @@ export interface SampleAuditReportTemplate {
 export type EnquiryType =
   | 'Book a demo'
   | 'Request media-wise quote'
+  | 'Request Pricing / Quotation'
   | 'Discuss pilot'
   | 'Product question';
 
 export interface QuoteMediaRow {
   id: string;
-  familyId: MediaFamilyId;
-  mediaTypeId: string;
-  units: number;
-  rounds: number;
+  mediaRateId: string; // references FixedMediaRate.id or custom media id
+  mediaName: string;
+  category: string;
+  units: number; // units, locations, vehicles, stores, promoters
+  multiplier: number; // inspections per unit, months, days
   cityScope: string;
+  isCustomQuote?: boolean;
 }
 
 export interface QuotePrefillPayload {
   enquiryType: EnquiryType;
-  dashboardPlanId?: string;
-  dashboardPlanLabel?: string;
+  walletPackageId?: string;
+  walletPackageName?: string;
+  dashboardUsers?: number;
+  dashboardMonthlyInr?: number;
+  totalCredits?: number;
+  estimatedAuditCostInr?: number;
   selectedMediaNames?: string[];
   totalAuditEvents?: number;
   cityScope?: string;
   summaryText?: string;
+  // Legacy compatibility fields if needed
+  dashboardPlanId?: string;
+  dashboardPlanLabel?: string;
 }
