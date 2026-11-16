@@ -527,3 +527,4 @@ export const PUBLIC_MEDIA_CATALOG: PublicMediaFormat[] = [
     availableFrequencies: ['One-time', 'Weekly', 'Monthly', 'Custom'],
   },
 ];
+

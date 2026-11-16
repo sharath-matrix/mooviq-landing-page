@@ -247,3 +247,4 @@ export function generateQuotationPdf(quotation: CalculatedQuotation): Uint8Array
   const arrayBuffer = doc.output('arraybuffer');
   return new Uint8Array(arrayBuffer);
 }
+
